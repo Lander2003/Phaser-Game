@@ -1,5 +1,5 @@
 import './style.css';
-import Phaser from "phaser";
+import Phaser from 'phaser';
 
 const sizes = {
   width: 576,
@@ -8,93 +8,156 @@ const sizes = {
 
 let scoreBoard;
 let score = 0;
+let soundPlayed = false;
 
 class GameScene extends Phaser.Scene {
   constructor() {
-    super("scene-game");
-    this.player = null;
-    this.cursor = null;
-    this.background = null;
-    this.ground = null;
+    super('scene-game');
     this.playerSpeed = 100;
-    this.bgMusic = null;
-    this.jumpSound = null;
-    this.coin = null;
-    this.coinCollectedSound = null;
-    this.levelPassed = null;
   }
 
   preload() {
-    this.load.image("background", "assets/maps/winter3/4.png");
-    this.load.image("background2", "assets/maps/winter5/11.png");
-    this.load.image("background3", "assets/maps/summer2/Summer2.png");
-
-    this.load.spritesheet("player", "assets/player/Pink_Monster_Walk_6.png", {
-      frameWidth: 32,
-      frameHeight: 32
-    });
-    this.load.spritesheet("playerJump", "assets/player/Pink_Monster_Jump_8.png", {
-      frameWidth: 32,
-      frameHeight: 32
-    });
-    this.load.spritesheet("playerRun", "assets/player/Pink_Monster_Run_6.png", {
-      frameWidth: 32,
-      frameHeight: 32
-    });
-
-    this.load.spritesheet("coin", "assets/collectables/MonedaP.png", {
-      frameWidth: 16,
-      frameHeight: 16
-    });
-    this.load.spritesheet("coin2", "assets/collectables/MonedaR.png", {
-      frameWidth: 16,
-      frameHeight: 16
-    });
-    this.load.spritesheet("coin3", "assets/collectables/MonedaD.png", {
-      frameWidth: 16,
-      frameHeight: 16
-    });
-
-    this.load.audio("theme", "assets/theme.mp3");
-    this.load.audio("jump", "assets/jump.mp3");
-    this.load.audio("levelPassed", "assets/levelPassed.mp3");
-    this.load.audio("coinCollected", "assets/coinCollected.wav");
+    this.loadAssets();
   }
 
   create() {
-    this.bgMusic = this.sound.add("theme", { volume: 1 });
-    this.bgMusic.play();
-    this.jumpSound = this.sound.add("jump", { volume: 0.5 });
-    this.coinCollectedSound = this.sound.add("coinCollected");
-    this.levelPassed = this.sound.add("levelPassed");
-
-    this.background = this.add.image(0, 0, "background").setOrigin(0, 0);
-
+    this.createSounds();
+    this.createBackground();
+    this.createPlayer();
+    this.createCoin();
+    this.createAnimations();
+    this.createScoreBoard();
     this.cursor = this.input.keyboard.createCursorKeys();
+  }
 
-    this.player = this.physics.add.sprite(0, 0, "player").setOrigin(0, 0);
+  update() {
+    this.handlePlayerMovement();
+    this.handleBackgroundChange();
+  }
+
+  loadAssets() {
+    this.load.image('background', 'assets/maps/winter3/4.png');
+    this.load.image('background2', 'assets/maps/winter5/11.png');
+    this.load.image('background3', 'assets/maps/summer2/Summer2.png');
+
+    this.load.spritesheet('player', 'assets/player/Pink_Monster_Walk_6.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('playerJump', 'assets/player/Pink_Monster_Jump_8.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('playerRun', 'assets/player/Pink_Monster_Run_6.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('playerIdle', 'assets/player/Pink_Monster_Idle_4.png', { frameWidth: 32, frameHeight: 32 });
+
+    this.load.spritesheet('coin', 'assets/collectables/MonedaP.png', { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet('coin2', 'assets/collectables/MonedaR.png', { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet('coin3', 'assets/collectables/MonedaD.png', { frameWidth: 16, frameHeight: 16 });
+
+    this.load.audio('theme', 'assets/theme.mp3');
+    this.load.audio('jump', 'assets/jump.mp3');
+    this.load.audio('levelPassed', 'assets/levelPassed.mp3');
+    this.load.audio('coinCollected', 'assets/coinCollected.wav');
+  }
+
+  createSounds() {
+    this.bgMusic = this.sound.add('theme', { volume: 1 });
+    this.bgMusic.play();
+    this.jumpSound = this.sound.add('jump');
+    this.coinCollectedSound = this.sound.add('coinCollected');
+    this.levelPassed = this.sound.add('levelPassed');
+  }
+
+  createBackground() {
+    this.background = this.add.image(0, 0, 'background').setOrigin(0, 0);
+  }
+
+  createPlayer() {
+    this.player = this.physics.add.sprite(0, 0, 'player').setOrigin(0, 0);
     this.player.setBounce(0.3);
     this.player.body.allowGravity = true;
     this.player.setCollideWorldBounds(true);
-    this.player.setSize(32, 42).setOffset(0, 0);
-
+    this.player.setSize(26, 42).setOffset(2, 0);
+    this.player.setImmovable(true);
     this.player.setInteractive();
+  }
 
-    this.coin = this.physics.add.sprite(520, 280, "coin").setOrigin(0, 0);
-    this.coin.setBounce(0.5);
-    this.coin.setSize(6, 32).setOffset(5, 0);
+  createCoin() {
+    this.coin = this.physics.add.sprite(520, 280, 'coin').setOrigin(0, 0);
+    this.coin.setSize(16, 32).setOffset(0, 0);
     this.coin.body.allowGravity = true;
     this.coin.setCollideWorldBounds(true);
 
     this.physics.add.overlap(this.coin, this.player, this.coinCollected, null, this);
+    this.coin.play('coinAnimation', true);
+  }
 
-    this.createAnimations();
+  createAnimations() {
+    this.createPlayerAnimations();
+    this.createCoinAnimations();
+  }
 
-    this.coin.play("coinAnimation", true);
+  createPlayerAnimations() {
+    this.anims.create({
+      key: 'player_walk',
+      frames: this.anims.generateFrameNumbers('player'),
+      frameRate: 15,
+      repeat: -1
+    });
 
-    scoreBoard = this.add.text(30, 30, 'Collected Coins: 0', {
+    this.anims.create({
+      key: 'player_run',
+      frames: this.anims.generateFrameNumbers('playerRun'),
+      frameRate: 16,
+      repeat: -1
+    });
+
+    this.anims.create({
+      key: 'player_idle',
+      frames: this.anims.generateFrameNumbers('playerIdle'),
+      frameRate: 6,
+      repeat: -1
+    });
+  }
+
+  createCoinAnimations() {
+    this.anims.create({
+      key: 'coinAnimation',
+      frames: this.anims.generateFrameNumbers('coin'),
+      frameRate: 6,
+      repeat: -1
+    });
+
+    this.anims.create({
+      key: 'coinAnimation2',
+      frames: this.anims.generateFrameNumbers('coin2'),
+      frameRate: 6,
+      repeat: -1
+    });
+
+    this.anims.create({
+      key: 'coinAnimation3',
+      frames: this.anims.generateFrameNumbers('coin3'),
+      frameRate: 6,
+      repeat: -1
+    });
+  }
+
+  createScoreBoard() {
+    scoreBoard = this.add.text(15, 60, 'Collected Coins: 0', {
       fontFamily: 'cursive',
-      fontSize: '40px',
+      fontSize: '20px',
+      color: 'black',
+      align: 'center',
+      stroke: '#fff',
+      strokeThickness: 4,
+      shadow: {
+        offsetX: 0.5,
+        offsetY: 0.5,
+        color: '#333333',
+        blur: 2,
+        fill: true
+      }
+    });
+
+    this.add.text(15, 15, 'Lander\'s Pet', {
+      fontFamily: 'cursive',
+      fontSize: '30px',
       color: 'black',
       align: 'center',
       stroke: '#fff',
@@ -109,107 +172,51 @@ class GameScene extends Phaser.Scene {
     });
   }
 
-  createAnimations() {
-    this.anims.create({
-      key: "player_walk",
-      frames: this.anims.generateFrameNumbers("player"),
-      frameRate: 15,
-      repeat: -1
-    });
-
-    this.anims.create({
-      key: "player_run",
-      frames: this.anims.generateFrameNumbers("playerRun"),
-      frameRate: 16,
-      repeat: -1
-    });
-
-    this.anims.create({
-      key: "player_idle",
-      frames: this.anims.generateFrameNumbers("playerIdle"),
-      frameRate: 8,
-      repeat: -1
-    });
-
-    this.anims.create({
-      key: "player_jump",
-      frames: this.anims.generateFrameNumbers("playerJump"),
-      frameRate: 10,
-      repeat: -1
-    });
-
-    this.anims.create({
-      key: "coinAnimation",
-      frames: this.anims.generateFrameNumbers("coin"),
-      frameRate: 6,
-      repeat: -1
-    });
-
-    this.anims.create({
-      key: "coinAnimation2",
-      frames: this.anims.generateFrameNumbers("coin2"),
-      frameRate: 6,
-      repeat: -1
-    });
-
-    this.anims.create({
-      key: "coinAnimation3",
-      frames: this.anims.generateFrameNumbers("coin3"),
-      frameRate: 6,
-      repeat: -1
-    });
-  }
-
-  update() {
+  handlePlayerMovement() {
     const { left, right, up, shift } = this.cursor;
 
     if (left.isDown) {
-      if (shift.isDown) {
-        this.player.play("player_run", true);
-        this.player.setVelocityX(-this.playerSpeed - 80);
-      } else {
-        this.player.setVelocityX(-this.playerSpeed);
-        this.player.flipX = true;
-        this.player.play("player_walk", true);
-      }
+      this.handleMovement(-this.playerSpeed, 'left', shift.isDown);
     } else if (right.isDown) {
-      if (shift.isDown) {
-        this.player.play("player_run", true);
-        this.player.setVelocityX(this.playerSpeed + 80);
-        this.player.flipX = false;
-      } else {
-        this.player.setVelocityX(this.playerSpeed);
-        this.player.flipX = false;
-        this.player.play("player_walk", true);
-      }
+      this.handleMovement(this.playerSpeed, 'right', shift.isDown);
     } else {
       this.player.setVelocityX(0);
-      this.player.play("player_idle", true);
+      this.player.play('player_idle', true);
     }
 
-    if (up.isDown && this.player.body.touching.down) {
+    if (up.isDown && this.player.body.onFloor()) {
       this.jumpSound.play();
-      this.player.setVelocityY(-175);
-      this.player.play("player_jump", true);
+      this.player.setVelocityY(-210);
     }
-
-    this.handleBackgroundAndCoinAnimation();
   }
 
-  handleBackgroundAndCoinAnimation() {
-    if (score === 5) {
-      this.coin.play("coinAnimation2", true);
-      this.background.setTexture("background2");
-    }
+  handleMovement(speed, direction, isRunning) {
+    this.player.flipX = direction === 'left';
 
-    if (score === 10) {
-      this.coin.play("coinAnimation3", true);
-      this.background.setTexture("background3");
+    if (isRunning) {
+      this.player.play('player_run', true);
+      this.player.setVelocityX(direction === 'left' ? -speed - 80 : speed + 80);
+    } else {
+      this.player.play('player_walk', true);
+      this.player.setVelocityX(direction === 'left' ? -speed : speed);
     }
+  }
 
-    if (score === 4 || score === 9) {
-      this.levelPassed.play();
+  handleBackgroundChange() {
+    if (score === 10 || score === 20) {
+      if (!soundPlayed) {
+        this.levelPassed.play();
+        soundPlayed = true;
+      }
+      this.changeBackground(score === 10 ? 'background2' : 'background3', score === 10 ? 'coinAnimation2' : 'coinAnimation3');
+    } else if (score === 11 || score === 21) {
+      soundPlayed = false;
     }
+  }
+
+  changeBackground(backgroundKey, coinAnimationKey) {
+    this.background.setTexture(backgroundKey);
+    this.coin.play(coinAnimationKey, true);
   }
 
   coinCollected() {
@@ -217,8 +224,9 @@ class GameScene extends Phaser.Scene {
     this.coin.setY(100);
     this.coin.setX(this.getRandomX());
     score++;
-    scoreBoard.setText("Collected Coins: " + score);
+    scoreBoard.setText('Collected Coins: ' + score);
     this.coinCollectedSound.play();
+    console.log('Coin collected!');
   }
 
   getRandomX() {
@@ -234,8 +242,9 @@ const config = {
   type: Phaser.WEBGL,
   width: sizes.width,
   height: sizes.height,
+  canvas: document.getElementById('gameCanvas'),
   physics: {
-    default: "arcade",
+    default: 'arcade',
     arcade: {
       gravity: { y: 600 },
       debug: false
